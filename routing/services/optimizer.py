@@ -3,7 +3,7 @@ FuelOptimizer — finds the cheapest fuel stations at each required stop along a
 
 Algorithm
 ---------
-1. Given route waypoints (spaced ~400 miles apart), use a greedy algorithm to
+1. Given route waypoints (spaced ~500 miles apart), use a greedy algorithm to
    identify the minimum set of stops where refuelling is REQUIRED given the
    vehicle's maximum range (default 500 miles).
 
@@ -118,7 +118,7 @@ class FuelOptimizer:
         ----------
         waypoints:
             Intermediate route waypoints from ``RoutingService.get_route()``,
-            each spaced ~400 miles apart.
+            each spaced ~500 miles apart.
         total_route_miles:
             Total length of the route in miles (used to evaluate the last leg).
 

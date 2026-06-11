@@ -4,7 +4,7 @@ RoutingService — wraps the free OSRM demo API.
 One call to /route/v1/driving returns:
   - full route geometry (GeoJSON LineString)
   - total distance in miles
-  - waypoints sampled every ~400 miles along the route
+  - waypoints sampled every ~500 miles along the route
 """
 
 import math
@@ -19,7 +19,7 @@ import requests
 
 OSRM_BASE_URL = "http://router.project-osrm.org/route/v1/driving"
 METERS_PER_MILE = 1_609.344
-WAYPOINT_INTERVAL_MILES = 400.0
+WAYPOINT_INTERVAL_MILES = 500.0
 WAYPOINT_INTERVAL_METERS = WAYPOINT_INTERVAL_MILES * METERS_PER_MILE
 REQUEST_TIMEOUT_SECONDS = 30
 
@@ -43,7 +43,7 @@ class RouteResult:
     geometry: dict                    # GeoJSON LineString {"type": "LineString", "coordinates": [[lng, lat], ...]}
     distance_miles: float             # total route distance
     duration_seconds: float           # estimated travel time
-    waypoints: List[Waypoint] = field(default_factory=list)  # sampled every ~400 mi
+    waypoints: List[Waypoint] = field(default_factory=list)  # sampled every ~500 mi
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ def _sample_waypoints(
 
     waypoints: List[Waypoint] = []
     cumulative_meters = 0.0
-    next_threshold = interval_meters  # first waypoint at ~400 miles
+    next_threshold = interval_meters  # first waypoint at ~500 miles
 
     prev_lon, prev_lat = coordinates[0]
 
@@ -176,7 +176,7 @@ class RoutingService:
         RouteResult
             Contains the GeoJSON geometry, total distance in miles,
             estimated duration in seconds, and intermediate waypoints
-            spaced roughly every 400 miles.
+            spaced roughly every 500 miles.
 
         Raises
         ------
