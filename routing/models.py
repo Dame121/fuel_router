@@ -9,8 +9,8 @@ class FuelStation(models.Model):
     state = models.CharField(max_length=2, db_index=True)
     rack_id = models.IntegerField(null=True, blank=True)
     price_per_gallon = models.DecimalField(max_digits=8, decimal_places=5)
-    latitude = models.FloatField(null=True, blank=True)
-    longitude = models.FloatField(null=True, blank=True)
+    latitude = models.FloatField(null=True, blank=True, db_index=True)
+    longitude = models.FloatField(null=True, blank=True, db_index=True)
 
     class Meta:
         ordering = ["state", "city", "station_name"]

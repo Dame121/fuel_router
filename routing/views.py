@@ -1,3 +1,5 @@
+import hashlib
+from django.core.cache import cache
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -28,6 +30,15 @@ class RouteAPIView(APIView):
 
         start_location = serializer.validated_data["start"]
         end_location = serializer.validated_data["end"]
+
+        # 0. Check Cache
+        norm_start = start_location.lower().strip()
+        norm_end = end_location.lower().strip()
+        cache_key = f"route_{hashlib.md5(f'{norm_start}_{norm_end}'.encode('utf-8')).hexdigest()}"
+
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return Response(cached_response, status=status.HTTP_200_OK)
 
         # 1. Geocode locations
         geocoder = GeocodingService()
@@ -95,5 +106,8 @@ class RouteAPIView(APIView):
             "total_gallons": round(total_gallons, 2),
             "total_fuel_cost_usd": round(total_fuel_cost_usd, 2),
         }
+
+        # Cache the successful response for 1 hour
+        cache.set(cache_key, response_data, 60 * 60)
 
         return Response(response_data, status=status.HTTP_200_OK)
