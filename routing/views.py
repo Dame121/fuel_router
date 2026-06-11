@@ -1,5 +1,7 @@
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 from django.core.cache import cache
+from django.shortcuts import render
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -40,17 +42,21 @@ class RouteAPIView(APIView):
         if cached_response:
             return Response(cached_response, status=status.HTTP_200_OK)
 
-        # 1. Geocode locations
+        # 1. Geocode both locations concurrently (halves latency on cache miss)
         geocoder = GeocodingService()
-        
-        start_coords = geocoder.get_coordinates(start_location)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            start_future = pool.submit(geocoder.get_coordinates, start_location)
+            end_future   = pool.submit(geocoder.get_coordinates, end_location)
+            start_coords = start_future.result()
+            end_coords   = end_future.result()
+
         if start_coords == (None, None):
             return Response(
                 {"error": f"Could not geocode start location: '{start_location}'"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        end_coords = geocoder.get_coordinates(end_location)
         if end_coords == (None, None):
             return Response(
                 {"error": f"Could not geocode end location: '{end_location}'"},
@@ -69,6 +75,10 @@ class RouteAPIView(APIView):
 
         # 3. Run Fuel Optimizer
         optimizer = FuelOptimizer()
+        required_stop_waypoints = optimizer._identify_required_stops(
+            route_result.waypoints,
+            route_result.distance_miles,
+        )
         fuel_stops = optimizer.optimize(
             waypoints=route_result.waypoints,
             total_route_miles=route_result.distance_miles,
@@ -99,8 +109,19 @@ class RouteAPIView(APIView):
                 "longitude": stop.longitude,
             })
 
+        # Required stop zones: where the vehicle *must* refuel regardless of station data
+        required_stop_zones = [
+            {
+                "latitude": wp.lat,
+                "longitude": wp.lng,
+                "distance_miles": wp.distance_miles,
+            }
+            for wp in required_stop_waypoints
+        ]
+
         response_data = {
             "route_geometry": route_result.geometry,
+            "required_stop_zones": required_stop_zones,
             "fuel_stops": stops_output,
             "total_miles": round(total_miles, 2),
             "total_gallons": round(total_gallons, 2),
@@ -111,3 +132,15 @@ class RouteAPIView(APIView):
         cache.set(cache_key, response_data, 60 * 60)
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class RouteMapView(APIView):
+    """
+    GET /api/route/map/
+    Returns a self-contained interactive HTML page powered by Leaflet.js.
+    The page calls POST /api/route/ via JavaScript — no extra server-side
+    API calls are made from this view.
+    """
+
+    def get(self, request, *args, **kwargs):
+        return render(request, 'routing/map.html')
